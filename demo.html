@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Real Mockup T-Shirt Designer (Front)</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f5f6fa;
+        font-family: "Inter", system-ui, sans-serif;
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+
+      canvas {
+        background: #eee;
+        border-radius: 12px;
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+      }
+
+      .logo-list {
+        max-height: 340px;
+        overflow-y: auto;
+      }
+
+      .logo-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        border: 1px solid #e5e5e5;
+        border-radius: 8px;
+        background-color: #fafafa;
+      }
+
+      .logo-thumb {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+      }
+
+      .hint {
+        font-size: 0.875rem;
+        color: #666;
+      }
+
+      .total-price {
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: #111;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Mockup T-Shirt</h1>
+
+    <div class="row g-4">
+      <!-- LEFT PANEL -->
+      <div class="col-lg-8">
+        <div class="card p-3">
+          <div class="text-center mb-3">
+            <canvas
+              id="canvas"
+              width="600"
+              height="800"
+              aria-label="T-shirt mockup canvas"
+            ></canvas>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 justify-content-center">
+            <button id="btnAdd" class="btn btn-dark">
+              Tambah Logo (Pilih File)
+            </button>
+            <button id="btnExport" class="btn btn-outline-dark">
+              Export PNG
+            </button>
+            <button id="btnClear" class="btn btn-outline-secondary">
+              Clear Semua Logo
+            </button>
+          </div>
+
+          <p class="hint text-center mt-3">
+            Klik logo di canvas untuk memilih. Drag untuk memindah. Ubah ukuran
+            dari panel kanan.
+          </p>
+
+          <div
+            class="d-flex justify-content-between align-items-center mt-3 p-2 bg-light rounded"
+          >
+            <div>Total Harga:</div>
+            <div id="totalPrice" class="total-price">Rp 0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="col-lg-4">
+        <div class="card p-3">
+          <div class="mb-3" style="display: none">
+            <label class="form-label">Warna Kaos</label>
+            <input
+              type="color"
+              id="shirtColor"
+              class="form-control form-control-color"
+              value="#ffffff"
+            />
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Pilih Ukuran sebelum upload</label>
+            <select id="uploadSize" class="form-select">
+              <option value="10">10 x 10 cm — Rp 50.000</option>
+              <option value="20">20 x 20 cm — Rp 70.000</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">File (multiple)</label>
+            <input
+              id="fileInput"
+              type="file"
+              class="form-control"
+              accept="image/*"
+              multiple
+            />
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button id="btnUpload" class="btn btn-dark flex-fill">
+              Upload ke Kaos
+            </button>
+            <button id="btnAuto" class="btn btn-outline-secondary flex-fill">
+              Auto-center Terakhir
+            </button>
+          </div>
+
+          <hr />
+
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>Daftar Logo</strong>
+            <span class="hint">Klik pilih / ubah ukuran</span>
+          </div>
+
+          <div class="logo-list" id="logoList"></div>
+
+          <hr />
+
+          <div class="mb-3">
+            <label class="form-label">Ukuran logo (terpilih)</label>
+            <select id="selectedSize" class="form-select">
+              <option value="10">10 x 10 cm — Rp 50.000</option>
+              <option value="20">20 x 20 cm — Rp 70.000</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Hapus logo terpilih</label>
+            <button id="delSelected" class="btn btn-outline-danger w-100">
+              Hapus Logo
+            </button>
+          </div>
+
+          <p class="hint">
+            Catatan: untuk hasil cetak profesional nanti perlu skala px-per-cm &
+            DPI output; ini hanya preview mockup realistis untuk tampilan depan.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      /* Realistic mockup workflow:
+ - uses 'kaos.png' as base texture (place kaos.png in same folder)
+ - tint base using 'multiply' composite to change color but preserve fabric texture
+ - logos are images drawn above (with subtle shadow)
+ - chest printable area is computed from base image proportions and logos are kept within canvas bounds
+ - price: 10cm => 50k, 20cm => 70k
+ - upload multiple; choose size in uploadSize before clicking Upload
+*/
+
+      // PRICE table
+      const PRICE = { 10: 50000, 20: 70000 };
+      // scale: 1 cm => 5 px (preview). 10 cm => 50 px, 20 cm => 100 px
+      const CM_TO_PX = 5;
+
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const fileInput = document.getElementById("fileInput");
+      const btnAdd = document.getElementById("btnAdd");
+      const btnUpload = document.getElementById("btnUpload");
+      const btnExport = document.getElementById("btnExport");
+      const btnClear = document.getElementById("btnClear");
+      const btnAuto = document.getElementById("btnAuto");
+
+      const shirtColorEl = document.getElementById("shirtColor");
+      const uploadSizeEl = document.getElementById("uploadSize");
+      const logoListEl = document.getElementById("logoList");
+      const selectedSizeEl = document.getElementById("selectedSize");
+      const delSelectedBtn = document.getElementById("delSelected");
+      const totalPriceEl = document.getElementById("totalPrice");
+
+      let baseImg = new Image();
+      baseImg.src = "kaos.jpg"; // <-- letakkan kaos.png di folder yang sama
+      let baseLoaded = false;
+
+      // state
+      const state = {
+        shirtColor: shirtColorEl.value,
+        logos: [], // {id, name, img, x, y, sizeCm, sizePx, price, thumb}
+        selectedId: null,
+        fileQueue: [],
+      };
+
+      // set canvas to image natural size when base loaded
+      baseImg.onload = () => {
+        baseLoaded = true;
+        // set canvas size to image size (use reasonable max scaling via CSS)
+        canvas.width = baseImg.naturalWidth;
+        canvas.height = baseImg.naturalHeight;
+        renderAll();
+      };
+
+      // helper id
+      function uid(pref = "l") {
+        return pref + Math.random().toString(36).slice(2, 9);
+      }
+
+      // compute chest area roughly based on texture size (percentages tuned to kaos.png)
+      function chestArea() {
+        // these percentages may be tuned for your kaos.png. They assume shirt occupies most of canvas
+        const w = canvas.width,
+          h = canvas.height;
+        const padX = Math.round(w * 0.12);
+        const padY = Math.round(h * 0.1);
+        const sw = w - padX * 2,
+          sh = h - padY * 2;
+        const pW = Math.round(sw * 0.45);
+        const pH = Math.round(sh * 0.28);
+        const pX = padX + Math.round((sw - pW) / 2);
+        const pY = padY + Math.round(sh * 0.26);
+        return { pX, pY, pW, pH };
+      }
+
+      // draw base mockup + tint
+      function drawBaseTinted() {
+        if (!baseLoaded) {
+          // blank background
+          ctx.fillStyle = "#fafafa";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          return;
+        }
+        // draw original texture
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+
+        // apply tint: draw rectangle filled with color, multiply to preserve texture
+        ctx.save();
+        ctx.globalCompositeOperation = "multiply";
+        ctx.fillStyle = state.shirtColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        // subtle highlight overlay to keep fabric look
+        ctx.save();
+        ctx.globalCompositeOperation = "overlay"; // overlay often supported
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, "rgba(255,255,255,0.08)");
+        grad.addColorStop(0.6, "rgba(255,255,255,0.00)");
+        grad.addColorStop(1, "rgba(0,0,0,0.03)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+
+      // render all: base, logos
+      function renderAll() {
+        // 1) base + tint
+        drawBaseTinted();
+
+        // 2) optionally draw chest guide (can disable)
+        // const chest = chestArea();
+        // ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,0.04)'; ctx.strokeRect(chest.pX, chest.pY, chest.pW, chest.pH); ctx.restore();
+
+        // 3) draw logos in order
+        state.logos.forEach((logo) => {
+          ctx.save();
+          // subtle shadow for realism
+          ctx.shadowColor = "rgba(0,0,0,0.25)";
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetY = 4;
+          ctx.drawImage(logo.img, logo.x, logo.y, logo.sizePx, logo.sizePx);
+          ctx.shadowBlur = 0;
+          // outline if selected
+          if (logo.id === state.selectedId) {
+            ctx.strokeStyle = "rgba(0,0,0,0.45)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(
+              logo.x - 4,
+              logo.y - 4,
+              logo.sizePx + 8,
+              logo.sizePx + 8
+            );
+          }
+          ctx.restore();
+        });
+
+        updateLogoListUI();
+        updateTotalPrice();
+      }
+
+      // update price
+      function updateTotalPrice() {
+        const total = state.logos.reduce(
+          (acc, l) => acc + (l.price || PRICE[l.sizeCm]),
+          0
+        );
+        totalPriceEl.textContent = "Rp " + total.toLocaleString("id-ID");
+      }
+
+      // create thumbnail for UI
+      function createThumb(img, size = 80) {
+        const c = document.createElement("canvas");
+        c.width = size;
+        c.height = size;
+        const t = c.getContext("2d");
+        t.fillStyle = "#fff";
+        t.fillRect(0, 0, size, size);
+        const ratio = Math.min(size / img.width, size / img.height);
+        const w = img.width * ratio,
+          h = img.height * ratio;
+        t.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        return c.toDataURL();
+      }
+
+      /* UI: add/upload logos */
+      // helper: add image to state as logo
+      function pushLogo(img, filename, sizeCm) {
+        const id = uid();
+        const sizePx = Math.round(sizeCm * CM_TO_PX);
+        // default pos: center of chest area with slight offset
+        const chest = chestArea();
+        const baseX =
+          chest.pX +
+          Math.round((chest.pW - sizePx) / 2) +
+          ((state.logos.length * 12) % 80);
+        const baseY =
+          chest.pY +
+          Math.round((chest.pH - sizePx) / 2) +
+          ((state.logos.length * 8) % 60);
+        const thumb = createThumb(img, 80);
+        state.logos.push({
+          id,
+          name: filename || "Logo",
+          img,
+          x: baseX,
+          y: baseY,
+          sizeCm,
+          sizePx,
+          price: PRICE[sizeCm],
+          thumb,
+        });
+        // select newly added
+        state.selectedId = id;
+        renderAll();
+      }
+
+      btnAdd.addEventListener("click", () => fileInput.click());
+
+      fileInput.addEventListener("change", (ev) => {
+        const files = Array.from(ev.target.files || []);
+        // store in temp queue; require clicking Upload to actually add (so user can change uploadSize first)
+        state.fileQueue = files;
+        if (files.length) {
+          alert(
+            `${files.length} file dipilih. Klik "Upload ke Kaos (pakai ukuran terpilih)" untuk menambahkan dengan ukuran ${uploadSizeEl.value} cm.`
+          );
+        }
+      });
+
+      // Upload using selected size
+      btnUpload.addEventListener("click", () => {
+        if (!state.fileQueue || state.fileQueue.length === 0) {
+          alert("Tidak ada file diantre. Pilih file dulu (Tambah Logo).");
+          return;
+        }
+        const sizeCm = parseInt(uploadSizeEl.value, 10);
+        state.fileQueue.forEach((file, idx) => {
+          const img = new Image();
+          img.onload = () => pushLogo(img, file.name, sizeCm);
+          img.src = URL.createObjectURL(file);
+        });
+        state.fileQueue = [];
+        fileInput.value = "";
+      });
+
+      // Auto-center last selected (handy)
+      btnAuto.addEventListener("click", () => {
+        const sel =
+          state.logos.find((l) => l.id === state.selectedId) ||
+          state.logos[state.logos.length - 1];
+        if (!sel) return alert("Pilih logo atau tambahkan logo dulu.");
+        const chest = chestArea();
+        sel.x = chest.pX + Math.round((chest.pW - sel.sizePx) / 2);
+        sel.y = chest.pY + Math.round((chest.pH - sel.sizePx) / 2);
+        renderAll();
+      });
+
+      // delete selected
+      delSelectedBtn.addEventListener("click", () => {
+        if (!state.selectedId) {
+          alert("Pilih logo terlebih dahulu");
+          return;
+        }
+        if (!confirm("Hapus logo terpilih?")) return;
+        state.logos = state.logos.filter((l) => l.id !== state.selectedId);
+        state.selectedId = null;
+        renderAll();
+      });
+
+      // clear all
+      btnClear.addEventListener("click", () => {
+        if (!confirm("Hapus semua logo dari desain?")) return;
+        state.logos = [];
+        state.selectedId = null;
+        renderAll();
+      });
+
+      // export final PNG (draw base + tint + logos to new canvas, download)
+      btnExport.addEventListener("click", () => {
+        if (!baseLoaded) return alert("Base mockup belum siap.");
+        const out = document.createElement("canvas");
+        out.width = canvas.width;
+        out.height = canvas.height;
+        const octx = out.getContext("2d");
+        // draw base
+        octx.drawImage(baseImg, 0, 0, out.width, out.height);
+        // tint (multiply)
+        octx.globalCompositeOperation = "multiply";
+        octx.fillStyle = state.shirtColor;
+        octx.fillRect(0, 0, out.width, out.height);
+        octx.globalCompositeOperation = "source-over";
+        // overlay highlight
+        const g = octx.createLinearGradient(0, 0, 0, out.height);
+        g.addColorStop(0, "rgba(255,255,255,0.06)");
+        g.addColorStop(0.6, "rgba(255,255,255,0.00)");
+        g.addColorStop(1, "rgba(0,0,0,0.03)");
+        octx.fillStyle = g;
+        octx.fillRect(0, 0, out.width, out.height);
+        // draw logos
+        state.logos.forEach((l) => {
+          // subtle shadow drawn as rectangle behind (to keep sharp)
+          octx.save();
+          octx.shadowColor = "rgba(0,0,0,0.25)";
+          octx.shadowBlur = 8;
+          octx.shadowOffsetY = 4;
+          octx.drawImage(l.img, l.x, l.y, l.sizePx, l.sizePx);
+          octx.restore();
+        });
+
+        // download
+        const url = out.toDataURL("image/png");
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "tshirt-final.png";
+        a.click();
+      });
+
+      // side: selected size change event - change size of selected logo
+      selectedSizeEl.addEventListener("change", (ev) => {
+        const val = parseInt(ev.target.value, 10);
+        const sel = state.logos.find((l) => l.id === state.selectedId);
+        if (!sel) {
+          alert(
+            "Pilih logo dulu. Klik pada daftar logo atau langsung di canvas."
+          );
+          selectedSizeEl.value = "10";
+          return;
+        }
+        // update size while keeping center position (so it doesn't jump)
+        const cx = sel.x + sel.sizePx / 2;
+        const cy = sel.y + sel.sizePx / 2;
+        sel.sizeCm = val;
+        sel.sizePx = Math.round(val * CM_TO_PX);
+        sel.price = PRICE[val];
+        sel.x = Math.round(cx - sel.sizePx / 2);
+        sel.y = Math.round(cy - sel.sizePx / 2);
+        // keep within bounds
+        sel.x = Math.max(0, Math.min(sel.x, canvas.width - sel.sizePx));
+        sel.y = Math.max(0, Math.min(sel.y, canvas.height - sel.sizePx));
+        renderAll();
+      });
+
+      // logo list UI update
+      function updateLogoListUI() {
+        logoListEl.innerHTML = "";
+        state.logos.forEach((logo) => {
+          const item = document.createElement("div");
+          item.className = "logo-item";
+          const imgEl = document.createElement("img");
+          imgEl.className = "logo-thumb";
+          imgEl.src = logo.thumb;
+          const meta = document.createElement("div");
+          meta.className = "logo-meta";
+          meta.innerHTML = `<div style="font-weight:700">${
+            logo.name
+          }</div><small>Ukuran: ${logo.sizeCm} cm — Rp ${PRICE[
+            logo.sizeCm
+          ].toLocaleString("id-ID")}</small>`;
+          const actions = document.createElement("div");
+          actions.className = "logo-actions";
+          const btnSelect = document.createElement("button");
+          btnSelect.className = "btn-ghost";
+          btnSelect.textContent =
+            logo.id === state.selectedId ? "Terpilih" : "Pilih";
+          btnSelect.addEventListener("click", () => {
+            state.selectedId = logo.id;
+            selectedSizeEl.value = String(logo.sizeCm);
+            renderAll();
+          });
+          const sizeSel = document.createElement("select");
+          sizeSel.innerHTML =
+            '<option value="10">10 cm</option><option value="20">20 cm</option>';
+          sizeSel.value = String(logo.sizeCm);
+          sizeSel.addEventListener("change", (ev) => {
+            const newCm = parseInt(ev.target.value, 10);
+            const cx = logo.x + logo.sizePx / 2;
+            const cy = logo.y + logo.sizePx / 2;
+            logo.sizeCm = newCm;
+            logo.sizePx = Math.round(newCm * CM_TO_PX);
+            logo.price = PRICE[newCm];
+            logo.x = Math.max(
+              0,
+              Math.min(
+                Math.round(cx - logo.sizePx / 2),
+                canvas.width - logo.sizePx
+              )
+            );
+            logo.y = Math.max(
+              0,
+              Math.min(
+                Math.round(cy - logo.sizePx / 2),
+                canvas.height - logo.sizePx
+              )
+            );
+            renderAll();
+          });
+          const btnDel = document.createElement("button");
+          btnDel.className = "btn-ghost";
+          btnDel.textContent = "Hapus";
+          btnDel.addEventListener("click", () => {
+            if (!confirm("Hapus logo ini?")) return;
+            state.logos = state.logos.filter((l) => l.id !== logo.id);
+            if (state.selectedId === logo.id) state.selectedId = null;
+            renderAll();
+          });
+          actions.appendChild(btnSelect);
+          actions.appendChild(sizeSel);
+          actions.appendChild(btnDel);
+          item.appendChild(imgEl);
+          item.appendChild(meta);
+          item.appendChild(actions);
+          logoListEl.appendChild(item);
+        });
+      }
+
+      // mouse interactions: select & drag
+      let isDown = false;
+      let dragData = null;
+
+      canvas.addEventListener("mousedown", (ev) => {
+        if (!baseLoaded) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.round(
+          (ev.clientX - rect.left) * (canvas.width / rect.width)
+        );
+        const y = Math.round(
+          (ev.clientY - rect.top) * (canvas.height / rect.height)
+        );
+        // find topmost logo under pointer
+        let found = null;
+        for (let i = state.logos.length - 1; i >= 0; i--) {
+          const l = state.logos[i];
+          if (
+            x >= l.x &&
+            x <= l.x + l.sizePx &&
+            y >= l.y &&
+            y <= l.y + l.sizePx
+          ) {
+            found = l;
+            break;
+          }
+        }
+        if (found) {
+          state.selectedId = found.id;
+          dragData = {
+            id: found.id,
+            offsetX: x - found.x,
+            offsetY: y - found.y,
+          };
+        } else {
+          state.selectedId = null;
+          dragData = null;
+        }
+        isDown = true;
+        renderAll();
+      });
+
+      window.addEventListener("mousemove", (ev) => {
+        if (!isDown || !dragData) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.round(
+          (ev.clientX - rect.left) * (canvas.width / rect.width)
+        );
+        const y = Math.round(
+          (ev.clientY - rect.top) * (canvas.height / rect.height)
+        );
+        const logo = state.logos.find((l) => l.id === dragData.id);
+        if (!logo) return;
+        logo.x = x - dragData.offsetX;
+        logo.y = y - dragData.offsetY;
+        // keep inside canvas
+        logo.x = Math.max(0, Math.min(logo.x, canvas.width - logo.sizePx));
+        logo.y = Math.max(0, Math.min(logo.y, canvas.height - logo.sizePx));
+        renderAll();
+      });
+
+      window.addEventListener("mouseup", () => {
+        isDown = false;
+        dragData = null;
+      });
+
+      // keyboard delete selected
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Delete" || e.key === "Backspace") {
+          if (!state.selectedId) return;
+          state.logos = state.logos.filter((l) => l.id !== state.selectedId);
+          state.selectedId = null;
+          renderAll();
+        }
+      });
+
+      // connect shirt color input
+      shirtColorEl.addEventListener("input", (ev) => {
+        state.shirtColor = ev.target.value;
+        renderAll();
+      });
+
+      // initial render (if base loaded later, onload handles it)
+      renderAll();
+    </script>
+  </body>
+</html>
